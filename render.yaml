@@ -3,7 +3,7 @@ services:
     name: queuecare
     env: node
     plan: free
-    buildCommand: npm install && npm run build --prefix client && npm install --prefix server
+    buildCommand: npm install --prefix server && npm install --prefix client && npm run build --prefix client
     startCommand: node server/server.js
     envVars:
       - key: NODE_ENV

@@ -33,8 +33,9 @@ Render natively supports long-lived WebSockets (Socket.IO) and Node.js.
    - **Runtime**: `Node`
    - **Build Command**:
      ```bash
-     npm install && npm run build --prefix client && npm install --prefix server
+     npm install --prefix server && npm install --prefix client && npm run build --prefix client
      ```
+     *(Or simply: `npm run build`)*
    - **Start Command**:
      ```bash
      node server/server.js

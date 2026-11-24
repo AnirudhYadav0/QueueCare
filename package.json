@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "install:all": "npm install && npm install --prefix server && npm install --prefix client",
+    "install:server": "npm install --prefix server",
+    "install:client": "npm install --prefix client",
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "build:client": "npm run build --prefix client",
+    "build": "npm install --prefix server && npm install --prefix client && npm run build --prefix client",
+    "start": "node server/server.js",
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
     "seed": "npm run seed --prefix server",
     "test:backend": "node server/testAllVerifications.js",
     "test:browser": "node server/testFrontendBrowser.js",
-    "test": "npm run test:backend && npm run test:browser",
-    "build": "npm run build --prefix client",
-    "start": "node server/server.js",
-    "build:client": "npm run build --prefix client"
+    "test": "npm run test:backend && npm run test:browser"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

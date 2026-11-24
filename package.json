@@ -10,6 +10,8 @@
     "test:backend": "node server/testAllVerifications.js",
     "test:browser": "node server/testFrontendBrowser.js",
     "test": "npm run test:backend && npm run test:browser",
+    "build": "npm run build --prefix client",
+    "start": "node server/server.js",
     "build:client": "npm run build --prefix client"
   },
   "devDependencies": {

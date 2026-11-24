@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  queuecare-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: queuecare_app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - MONGODB_URI=mongodb://mongo:27017/queuecare
+      - JWT_SECRET=queuecare_production_jwt_secret_token_2026
+      - JWT_EXPIRE=7d
+      - CLIENT_URL=http://localhost:5000
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:6-jammy
+    container_name: queuecare_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

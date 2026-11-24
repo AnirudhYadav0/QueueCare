@@ -10,8 +10,14 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Initialize socket connection
-    const socketInstance = io(window.location.origin, {
+    // Initialize socket connection (supports unified and decoupled deployments)
+    const socketOrigin =
+      import.meta.env.VITE_SOCKET_URL ||
+      (import.meta.env.VITE_API_URL
+        ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '')
+        : window.location.origin);
+
+    const socketInstance = io(socketOrigin, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 1000,

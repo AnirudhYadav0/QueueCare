@@ -81,6 +81,19 @@ export const TodayQueue = () => {
     }
   };
 
+  const handleCallSpecific = async (tokenId) => {
+    try {
+      setActionLoading(true);
+      const res = await queueService.callNext(tokenId);
+      toast.success(res.message || 'Called patient');
+      setQueue(res.data?.queue);
+    } catch (err) {
+      toast.error(err.message || 'Failed to call patient');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleStartConsultation = async (tokenId) => {
     try {
       setActionLoading(true);
@@ -296,7 +309,7 @@ export const TodayQueue = () => {
                           <Button
                             variant="primary"
                             size="sm"
-                            onClick={() => handleStartConsultation(token._id)}
+                            onClick={() => handleCallSpecific(token._id)}
                           >
                             Call
                           </Button>

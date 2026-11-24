@@ -285,6 +285,33 @@ const cancelAppointment = async (req, res, next) => {
     appointment.cancellationReason = reason || 'Cancelled by patient';
     await appointment.save();
 
+    // If appointment had a token in today's live queue, update queue status and broadcast
+    if (appointment.tokenNumber) {
+      try {
+        const Queue = require('../models/Queue');
+        const { enrichQueueWithMetrics, getTodayNormalized } = require('../services/queueEngine');
+        const { emitQueueUpdate } = require('../services/socketService');
+
+        const today = getTodayNormalized();
+        const docId = appointment.doctor?._id || appointment.doctor;
+        const queue = await Queue.findOne({ doctor: docId, date: today });
+
+        if (queue) {
+          const tokenEntry = queue.tokens.find((t) => t.tokenNumber === appointment.tokenNumber);
+          if (tokenEntry && tokenEntry.status === 'waiting') {
+            tokenEntry.status = 'cancelled';
+            await queue.save();
+
+            const doctor = await Doctor.findById(docId);
+            const enriched = enrichQueueWithMetrics(queue, doctor?.avgConsultationMinutes || 15);
+            emitQueueUpdate(docId.toString(), enriched);
+          }
+        }
+      } catch (qErr) {
+        console.warn('Could not update queue on appointment cancellation:', qErr.message);
+      }
+    }
+
     await createNotification({
       recipient: appointment.patient,
       title: 'Appointment Cancelled',
@@ -334,8 +361,27 @@ const checkInByQR = async (req, res, next) => {
       }
     }
 
+    // If no explicit appointment reference provided, lookup appointment by 4-digit PIN for today
+    if (!targetAppId && pin) {
+      const today = new Date();
+      const startOfDay = new Date(today.setUTCHours(0, 0, 0, 0));
+      const endOfDay = new Date(today.setUTCHours(23, 59, 59, 999));
+
+      const foundApp = await Appointment.findOne({
+        checkInPin: pin.trim(),
+        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $ne: 'cancelled' },
+      });
+
+      if (foundApp) {
+        targetAppId = foundApp._id;
+      } else {
+        return sendError(res, 'No appointment scheduled for today matching this 4-digit PIN', 404);
+      }
+    }
+
     if (!targetAppId) {
-      return sendError(res, 'Invalid QR code or appointment reference', 400);
+      return sendError(res, 'Please provide an Appointment ID, QR Data, or 4-digit PIN', 400);
     }
 
     const appointment = await Appointment.findById(targetAppId);

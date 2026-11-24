@@ -4,6 +4,7 @@ const {
   getOrCreateTodayQueue,
   enrichQueueWithMetrics,
   callNextPatient,
+  callSpecificPatient,
   startConsultation,
   completeConsultation,
   skipPatient,
@@ -54,11 +55,10 @@ const getPatientQueueStatus = async (req, res, next) => {
     const startOfDay = new Date(now.setUTCHours(0, 0, 0, 0));
     const endOfDay = new Date(now.setUTCHours(23, 59, 59, 999));
 
-    // Find patient's appointment for today with token
-    const appointment = await Appointment.findOne({
+    // Prioritize active in_consultation or waiting appointment
+    let appointment = await Appointment.findOne({
       patient: req.user.id,
-      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
-      status: { $in: ['waiting', 'in_consultation', 'scheduled', 'completed', 'skipped'] },
+      status: { $in: ['waiting', 'in_consultation'] },
     })
       .populate({
         path: 'doctor',
@@ -68,6 +68,23 @@ const getPatientQueueStatus = async (req, res, next) => {
         ],
       })
       .sort({ createdAt: -1 });
+
+    // Fallback: Check for scheduled or completed appointment today
+    if (!appointment) {
+      appointment = await Appointment.findOne({
+        patient: req.user.id,
+        appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+        status: { $in: ['scheduled', 'completed', 'skipped'] },
+      })
+        .populate({
+          path: 'doctor',
+          populate: [
+            { path: 'user', select: 'name avatar' },
+            { path: 'department', select: 'name code tokenPrefix' },
+          ],
+        })
+        .sort({ createdAt: -1 });
+    }
 
     if (!appointment) {
       return sendSuccess(res, { activeQueue: null });
@@ -130,7 +147,13 @@ const callNext = async (req, res, next) => {
       return sendError(res, 'Doctor profile not found', 404);
     }
 
-    const result = await callNextPatient(doctor._id);
+    const { tokenId } = req.body || {};
+    let result;
+    if (tokenId) {
+      result = await callSpecificPatient(doctor._id, tokenId);
+    } else {
+      result = await callNextPatient(doctor._id);
+    }
     return sendSuccess(res, result, `Called patient with Token ${result.token.tokenNumber}`);
   } catch (error) {
     return sendError(res, error.message, 400);

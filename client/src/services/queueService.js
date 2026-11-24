@@ -9,8 +9,8 @@ export const queueService = {
     return await api.get('/queue/patient/status');
   },
 
-  callNext: async () => {
-    return await api.post('/queue/call-next');
+  callNext: async (tokenId = null) => {
+    return await api.post('/queue/call-next', tokenId ? { tokenId } : {});
   },
 
   startConsultation: async (tokenId) => {

@@ -223,6 +223,52 @@ const callNextPatient = async (doctorId) => {
   return { token: nextToken, queue: enrichedQueue };
 };
 
+// Call a specific token in queue
+const callSpecificPatient = async (doctorId, tokenId) => {
+  const queue = await getOrCreateTodayQueue(doctorId);
+  const doctor = await Doctor.findById(doctorId).populate('user');
+
+  const targetToken = queue.tokens.id(tokenId);
+  if (!targetToken) {
+    throw new Error('Token not found in queue');
+  }
+
+  // Revert any previous unstarted calling tokens
+  queue.tokens.forEach((t) => {
+    if (t.status === 'calling') {
+      t.status = 'waiting';
+    }
+  });
+
+  targetToken.status = 'calling';
+  targetToken.calledAt = new Date();
+  queue.currentServingToken = targetToken.tokenNumber;
+  queue.currentServingSequence = targetToken.sequence;
+  await queue.save();
+
+  const avgMinutes = doctor?.avgConsultationMinutes || 15;
+  const enrichedQueue = enrichQueueWithMetrics(queue, avgMinutes);
+
+  await createNotification({
+    recipient: targetToken.patient,
+    title: 'Your Turn! Token Called',
+    message: `Token ${targetToken.tokenNumber}: Please proceed immediately to Consultation Room ${doctor?.roomNumber || '1'}. Dr. ${doctor?.user?.name || ''} is ready.`,
+    type: 'queue',
+    relatedAppointment: targetToken.appointment,
+    link: `/queue/${doctorId}`,
+  });
+
+  emitTokenCalled(doctorId.toString(), {
+    tokenNumber: targetToken.tokenNumber,
+    patientName: targetToken.patientName,
+    roomNumber: doctor?.roomNumber || '1',
+    doctorName: doctor?.user?.name || 'Doctor',
+  });
+  emitQueueUpdate(doctorId.toString(), enrichedQueue);
+
+  return { token: targetToken, queue: enrichedQueue };
+};
+
 // Start consultation with called patient
 const startConsultation = async (doctorId, tokenId) => {
   const queue = await getOrCreateTodayQueue(doctorId);
@@ -347,6 +393,7 @@ module.exports = {
   enrichQueueWithMetrics,
   checkInPatient,
   callNextPatient,
+  callSpecificPatient,
   startConsultation,
   completeConsultation,
   skipPatient,

@@ -7,6 +7,9 @@
     "dev:server": "npm run dev --prefix server",
     "dev:client": "npm run dev --prefix client",
     "seed": "npm run seed --prefix server",
+    "test:backend": "node server/testAllVerifications.js",
+    "test:browser": "node server/testFrontendBrowser.js",
+    "test": "npm run test:backend && npm run test:browser",
     "build:client": "npm run build --prefix client"
   },
   "devDependencies": {
